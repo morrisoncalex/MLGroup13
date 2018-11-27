@@ -83,13 +83,16 @@ def replace_missing():
 	return 0
 	
 def best_fit(column, housing):
+	#getting a list of the remaining fields
 	types = list(housing)
 	types.remove(column)
 	print(types)
 	
+	#the values in the column we are finding a match for
 	x = housing[column].values.reshape(-1,1)
-	k = 5
 	
+	#setting up for fitting
+	k = 5
 	bestFit = 10000
 	bestMatch = "none"
 	Model = lm.LinearRegression()
