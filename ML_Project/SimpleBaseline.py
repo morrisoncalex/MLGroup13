@@ -6,36 +6,66 @@ from sklearn.model_selection import KFold
 
 def main():
 	housing = pandas.read_csv('./housing.csv')
-	#print(housing)
-
+	housingDropped = pandas.read_csv('./housing.csv')
+	
 	#Deleting the categorical data
 	housing.drop(columns=['ocean_proximity'], inplace=True)
-	#print(housing)
-	missing = housing.total_bedrooms.isna()
+	housingDropped.drop(columns=['ocean_proximity'], inplace=True)
+	
+	
+	#creating housingDropped which is the data with rows with missing values removed
+	missing = housingDropped.total_bedrooms.isna()
 	missingI = []	
 	for i in range(0,20639):
 	    if missing[i]:
 	        missingI.append(i)
-	housing.drop(missingI,axis=0,inplace=True)
+	housingDropped.drop(missingI,axis=0,inplace=True)
 	
 	
-	match = best_fit('total_bedrooms', housing)
+	#now we have 2 sets of data - one with missing values and one with them removed
+	#find the model which best regresses to predict the missing values
+	#do this using the data with missing values removed
+	match, fitModel = best_fit('total_bedrooms', housingDropped)
+	
+	#display the best field to regress with
 	print("Best match  for total_bedrooms is: ")
 	print(match)
+	print('\n')
+	
+	#replace all missing values using the calculated model
+	housing = replace_missing(housing, fitModel, match)
 	
 	
 	
-	
-	
-	y = housing.median_house_value.values.reshape(-1,1)
-	x = housing.drop(columns=['median_house_value'], inplace=False).values
+	#using new data, train a model on it
+	y    = housing.median_house_value.values.reshape(-1,1)
+	x    = housing.drop(columns=['median_house_value'], inplace=False).values
+	oldy = housingDropped.median_house_value.values.reshape(-1,1)
+	oldx = housingDropped.drop(columns=['median_house_value'], inplace=False).values
 	
 	Model = lm.LinearRegression()
+	oldModel = lm.LinearRegression()
 	k = 5
 	
-	Model, trainingAvg, testingAvg = k_fold_train(Model, k, x, y)
+	Model,       trainingAvg,    testingAvg = k_fold_train(Model, k, x, y)
+	oldModel, oldTrainingAvg, oldTestingAvg = k_fold_train(Model, k, oldx, oldy)
+	#print its accuracy
 	print('Average training error: ' + str(trainingAvg))
-	print('Average testing error: ' + str(testingAvg))
+	print('Average testing error : ' + str(testingAvg))
+	print('\n')
+	
+	#compare to data with missing values in it (old data)
+	#print its accuracy
+	print('Average training error (old data): ' + str(oldTrainingAvg))
+	print('Average testing error  (old data): ' + str(oldTestingAvg))
+	print('\n')
+	
+	#compute the difference in accuracy and print
+	diffTraining = oldTrainingAvg - trainingAvg
+	diffTesting  = oldTestingAvg  - testingAvg
+	print('Training diff (old - new): ' + str(oldTrainingAvg - trainingAvg))
+	print('Testing diff  (old - new): ' + str(oldTestingAvg - testingAvg))
+	print('\n')
 	
 		
 def k_fold_train(Model, k, x, y):
@@ -65,34 +95,29 @@ def k_fold_train(Model, k, x, y):
 	
 	
 	
-def replace_missing():
-	#fields:
-	#longitude
-	#latitude
-	#housing_median_age
-	#total_rooms
-	#total_bedrooms
-	#population
-	#households
-	#median_income
-	#households
-	#median_house_value
-	#ocean_proximity
+def replace_missing(housing, Model, match):
 	
+	missing = housing.total_bedrooms.isna()
 	
-	return 0
+	for i in range(len(missing)):
+		if missing[i]:
+			housing['total_bedrooms'][i] = Model.predict(housing[match][i].reshape(-1,1))
+			
+		
+	return housing
 	
 def best_fit(column, housing):
 	#getting a list of the remaining fields
 	types = list(housing)
 	types.remove(column)
-	print(types)
+	types.remove('median_house_value')
+	#print(types)
 	
 	#the values in the column we are finding a match for
-	x = housing[column].values.reshape(-1,1)
+	y = housing[column].values.reshape(-1,1)
 	
 	#setting up for fitting
-	k = 5
+	k = 3
 	bestFit = 10000
 	bestMatch = "none"
 	Model = lm.LinearRegression()
@@ -103,20 +128,24 @@ def best_fit(column, housing):
 	
 	
 	for i in range(len(types)):
-		y = housing[types[i]].values.reshape(-1,1)
+		x = housing[types[i]].values.reshape(-1,1)
 		Model, trainingAvg, testingAvg = k_fold_train(Model, k, x, y)
 		if bestFit > testingAvg:
 			bestFit = testingAvg
 			bestMatch = types[i]
+			bestModel = Model
 			
-		print("Fit (testingAvg) between:")
+		print("Fit between:")
 		print(column)	
 		print(types[i])
+		print("1. Training Average:")
+		print(trainingAvg)
+		print("2. Testing Average:")
 		print(testingAvg)
 		print('\n')
 		
 	
-	return bestMatch
+	return bestMatch, bestModel
 
 
 
