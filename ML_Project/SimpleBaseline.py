@@ -37,18 +37,20 @@ def main():
 	
 	
 	
-	#using new data, train a model on it
-	y    = housing.median_house_value.values.reshape(-1,1)
-	x    = housing.drop(columns=['median_house_value'], inplace=False).values
-	oldy = housingDropped.median_house_value.values.reshape(-1,1)
-	oldx = housingDropped.drop(columns=['median_house_value'], inplace=False).values
+	#Get the model and data
+	x, y, Model = create_model(housing)
+	oldx, oldy, oldModel = create_model(housingDropped)
 	
-	Model = lm.LinearRegression()
-	oldModel = lm.LinearRegression()
+	#number of folds
 	k = 5
 	
+	#training old and new models
 	Model,       trainingAvg,    testingAvg = k_fold_train(Model, k, x, y)
 	oldModel, oldTrainingAvg, oldTestingAvg = k_fold_train(Model, k, oldx, oldy)
+	
+	
+	#PRINTING RESULTS
+	
 	#print its accuracy
 	print('Average training error: ' + str(trainingAvg))
 	print('Average testing error : ' + str(testingAvg))
@@ -67,6 +69,12 @@ def main():
 	print('Testing diff  (old - new): ' + str(oldTestingAvg - testingAvg))
 	print('\n')
 	
+		
+def create_model(housing):
+	y    = housing.median_house_value.values.reshape(-1,1)
+	x    = housing.drop(columns=['median_house_value'], inplace=False).values
+	model = lm.LinearRegression()
+	return x, y, model
 		
 def k_fold_train(Model, k, x, y):
 	trainingSum = 0
@@ -126,7 +134,8 @@ def best_fit(column, housing):
 	bestModel = lm.LinearRegression()
 	
 	
-	
+	# Train a model against each column
+	# compare model based on testing average and return the best one
 	for i in range(len(types)):
 		x = housing[types[i]].values.reshape(-1,1)
 		Model, trainingAvg, testingAvg = k_fold_train(Model, k, x, y)
@@ -134,7 +143,8 @@ def best_fit(column, housing):
 			bestFit = testingAvg
 			bestMatch = types[i]
 			bestModel = Model
-			
+		
+		#PRINTINT MODEL RESULTS
 		print("Fit between:")
 		print(column)	
 		print(types[i])
