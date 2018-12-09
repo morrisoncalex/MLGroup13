@@ -15,7 +15,7 @@ def main():
 
 	# 1) Read the CSV. The variable 'housing' is of type 'DataFrame'.
 	housing = pandas.read_csv('./housing.csv')
-
+	
 	# 2) Decide if to perform one hot encoding.
 	if is_one_hot_encoding_enabled:
 		# Convert 'ocean_proximity' into multiple columns with names like ocean_proximity_INLAND, ocean_proximity_ISLAND,
@@ -25,21 +25,30 @@ def main():
 		# Drop the 'ocean_proximity' column, as it contains non-numeric data.
 		housing.drop(columns=['ocean_proximity'], inplace=True)
 
-	# TODO: Tom Linker - complete missing data. For now, we're simply removing it.
-	# 3) Delete rows with missing values.
-	missing = housing.total_bedrooms.isna()
-	missingI = []
-	for i in range(0, 20639):
-		if missing[i]:
-			missingI.append(i)
-	housing.drop(missingI, axis=0, inplace=True)
+	# 3) Replace missing data
+	
+	# To do this we need a copy of the data with rows with the missing values removed - we use this data to construct a model to predit the missing values
+	housing_dropped = housing.copy(deep=True)
+	#delete rows of missing values
+	delete_missing(housing_dropped)
+	#find the model to predict values
+	match, fitModel = best_fit('total_bedrooms', housing_dropped)
+	
+	#TODO Delete prints
+	#display the best field to regress with
+	print("Best match  for total_bedrooms is: ")
+	print(match)
+	print('\n')
+	
+	#replace all missing values using the calculated model
+	housing = replace_missing(housing, fitModel, match)
+	
+
 
 	# 4) Initialise Model, k, y and x.
-	Model = lm.LinearRegression()
+	x, y, Model = create_model(housing)
 	k = 5
-	y = housing.median_house_value.values.reshape(-1, 1)
-	# We've used the 'median_house_value' column for y, so we drop it from x.
-	x = housing.drop(columns=['median_house_value'], inplace=False).values
+	
 
 	# 5) Perform k-fold training.
 	Model, trainingAvg, testingAvg = k_fold_train(Model, k, x, y)
@@ -47,6 +56,14 @@ def main():
 	print('Average training error: ' + str(trainingAvg))
 	print('Average testing error: ' + str(testingAvg))
 
+def delete_missing(data):
+	missing = data.total_bedrooms.isna()
+	missingI = []
+	for i in range(0, 20639):
+		if missing[i]:
+			missingI.append(i)
+	data.drop(missingI, axis=0, inplace=True)
+	return data
 
 def k_fold_train(Model, k, x, y):
 	trainingSum = 0
@@ -66,12 +83,81 @@ def k_fold_train(Model, k, x, y):
 
 		print('Training error: ' + str(trainingError))
 		print('Testing error: ' + str(testingError))
+		
 
 	trainingAvg = trainingSum / k
 	testingAvg = testingSum / k
 
 	return Model, trainingAvg, testingAvg
 
+#Function which initialises models and creates y and x
+#Not used much, just makes Main() neater
+def create_model(housing, predict='median_house_value'):
+	y    = housing.median_house_value.values.reshape(-1, 1)
+	x    = housing.drop(columns=[predict], inplace=False).values
+	model = lm.LinearRegression()
+	return x, y, model
+
+
+# Function forms a model to predict missing values in a specified column (@param column)
+# Model formed by regressing column against other columns and returning one with the best accuracy
+# Function returns model and the name of matched column
+
+def best_fit(column, housing):
+	#getting a list of the remaining fields
+	types = list(housing)
+	types.remove(column)
+	
+	#the values in the column we are finding a match for
+	y = housing[column].values.reshape(-1,1)
+	
+	#setting up for fitting
+	k = 3
+	bestFit = -10000
+	bestMatch = "none"
+	
+	Model = lm.LinearRegression()
+	bestModel = lm.LinearRegression()
+	
+	
+	# Train a model against each column
+	# compare model based on testing average and return the best one
+	for i in range(len(types)):
+		x = housing[types[i]].values.reshape(-1,1)
+		Model, trainingAvg, testingAvg = k_fold_train(Model, k, x, y)
+		#1 = best possible fit = upper bound
+		if bestFit < testingAvg:
+			bestFit = testingAvg
+			bestMatch = types[i]
+			bestModel = Model
+		
+		#TODO Remove prints
+		#PRINTINT MODEL RESULTS
+		print("")
+		print("Fit between:")
+		print(column)	
+		print(types[i])
+		print("1. Training Average:")
+		print(trainingAvg)
+		print("2. Testing Average:")
+		print(testingAvg)
+		print('\n')
+		
+	
+	return bestMatch, bestModel
+
+# function whih takes housing the data with the empty data cells plus the model and matching column in said model
+# returns data witht the missing values replaced
+def replace_missing(housing, Model, match):
+	missing = housing.total_bedrooms.isna()
+	
+	for i in range(len(missing)):
+		if missing[i]:
+			housing['total_bedrooms'][i] = Model.predict(housing[match][i].reshape(-1,1))
+			
+		
+	return housing
+	
 
 if __name__ == "__main__": main()
 
