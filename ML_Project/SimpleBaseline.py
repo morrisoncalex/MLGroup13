@@ -126,7 +126,7 @@ def best_fit(column, housing):
 	
 	#setting up for fitting
 	k = 3
-	bestFit = 10000
+	bestFit = -10000
 	bestMatch = "none"
 	Model = lm.LinearRegression()
 	
@@ -139,7 +139,7 @@ def best_fit(column, housing):
 	for i in range(len(types)):
 		x = housing[types[i]].values.reshape(-1,1)
 		Model, trainingAvg, testingAvg = k_fold_train(Model, k, x, y)
-		if bestFit > testingAvg:
+		if bestFit < testingAvg:
 			bestFit = testingAvg
 			bestMatch = types[i]
 			bestModel = Model
