@@ -4,6 +4,7 @@ import numpy as np
 import sklearn.linear_model as lm
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import Pipeline
@@ -65,16 +66,19 @@ def main():
         # print(df)
     
     
-    # 4) Initialise Model, k, y and x.
+    # 4) Initialise Model, k, y, x and the degree of complexity.
+    complexity = 2
     x, y, Model = create_model(housing)
     k = 5
     
 
     # 5) Perform k-fold training.
-    Model, trainingAvg, testingAvg = k_fold_train(Model, k, x, y)
+    Model, trainingAvgMSE, testingAvgMSE, trainingAvgR2, testingAvgR2 = k_fold_train(Model, k, x, y, complexity)
 
-    print('Average training error: ' + str(trainingAvg))
-    print('Average testing error: ' + str(testingAvg))
+    print('Average MSE training error: ' + str(trainingAvgMSE))
+    print('Average MSE testing error: ' + str(testingAvgMSE))
+    print('Average MSE training error: ' + str(trainingAvgR2))
+    print('Average MSE testing error: ' + str(testingAvgR2))
 
 def delete_missing(data):
     missing = data.total_bedrooms.isna()
@@ -85,9 +89,11 @@ def delete_missing(data):
     data.drop(missingI, axis=0, inplace=True)
     return data
 
-def k_fold_train(Model, k, x, y):
-    trainingSum = 0
-    testingSum = 0
+def k_fold_train(Model, k, x, y, complexity):
+    trainingSumMSE = 0
+    testingSumMSE = 0
+    trainingSumR2 = 0
+    testingSumR2 = 0
     
     
     kf = KFold(n_splits=k, shuffle=True)
@@ -99,24 +105,33 @@ def k_fold_train(Model, k, x, y):
        y_train_pred = Model.predict(x_train)
        y_test_pred = Model.predict(x_test)
         
-       trainingError = mean_squared_error(y_train, y_train_pred)
-       testingError = mean_squared_error(y_test, y_test_pred)
-       trainingSum += trainingError
-       testingSum += testingError
+       trainingErrorMSE = mean_squared_error(y_train, y_train_pred)
+       testingErrorMSE = mean_squared_error(y_test, y_test_pred)
+       trainingSumMSE += trainingErrorMSE
+       testingSumMSE += testingErrorMSE
+       
+       trainingErrorR2 = r2_score(y_train, y_train_pred)
+       testingErrorR2 = r2_score(y_test, y_test_pred)
+       trainingSumR2 += trainingErrorR2
+       testingSumR2 += testingErrorR2
         
-       print('Training error: ' + str(trainingError))
-       print('Testing error: ' + str(testingError))
+       print('MSE Training error: ' + str(trainingErrorMSE))
+       print('MSE Testing error: ' + str(testingErrorMSE))
+       print('r2 Training error: ' + str(trainingErrorR2))
+       print('r2 Testing error: ' + str(testingErrorR2))
 
-    trainingAvg = trainingSum/k
-    testingAvg = testingSum/k
+    trainingAvgMSE = trainingSumMSE/k
+    testingAvgMSE = testingSumMSE/k
+    trainingAvgR2 = trainingSumR2/k
+    testingAvgR2 = testingSumR2/k
     
-    steps_ridge = [('scalar', StandardScaler()), ('poly', PolynomialFeatures(degree=3)), ('model', Ridge(alpha=1, fit_intercept=True))]
+    steps_ridge = [('scalar', StandardScaler()), ('poly', PolynomialFeatures(degree=complexity)), ('model', Ridge(alpha=1, fit_intercept=True))]
     pipeline_ridge = Pipeline(steps_ridge)
     pipeline_ridge.fit(x_train, y_train)
     print('Training score Ridge regression : {}'.format(pipeline_ridge.score(x_train, y_train)))
     print('Test score ridge regression: {}'.format(pipeline_ridge.score(x_test, y_test)))
     
-    return Model, trainingAvg, testingAvg
+    return Model, trainingAvgMSE, testingAvgMSE, trainingAvgR2, testingAvgR2
 #Function which initialises models and creates y and x
 #Not used much, just makes Main() neater
 def create_model(housing, predict='median_house_value'):
@@ -151,7 +166,7 @@ def best_fit(column, housing):
     # compare model based on testing average and return the best one
     for i in range(len(types)):
         x = housing[types[i]].values.reshape(-1,1)
-        Model, trainingAvg, testingAvg = k_fold_train(Model, k, x, y)
+        Model, trainingAvg, testingAvg, unusedTestR2, unusedTrainR2 = k_fold_train(Model, k, x, y, 1)
         #1 = best possible fit = upper bound
         if bestFit < testingAvg:
             bestFit = testingAvg
@@ -173,7 +188,7 @@ def best_fit(column, housing):
     
     return bestMatch, bestModel
 
-# function whih takes housing the data with the empty data cells plus the model and matching column in said model
+# function which takes housing the data with the empty data cells plus the model and matching column in said model
 # returns data witht the missing values replaced
 def replace_missing(housing, Model, match):
     missing = housing.total_bedrooms.isna()

@@ -22,10 +22,11 @@ housing.drop(missingI,axis=0,inplace=True)
 
 y = housing.median_house_value.values.reshape(-1,1)
 x = housing.drop(columns=['median_house_value'], inplace=False).values
-print(x.size)
-poly = PolynomialFeatures(degree=3)
+#print(x.size)
+complexityDegree = 2
+poly = PolynomialFeatures(degree=complexityDegree)
 x = poly.fit_transform(x)
-print(x.size)
+#print(x.size)
 
 Model = lm.LinearRegression()
 trainingSumR2 = 0
