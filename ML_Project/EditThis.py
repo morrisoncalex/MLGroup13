@@ -4,6 +4,10 @@ import numpy as np
 import sklearn.linear_model as lm
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
+from sklearn.linear_model import Ridge
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 
 # 1) Read the CSV.
@@ -106,6 +110,11 @@ def k_fold_train(Model, k, x, y):
     trainingAvg = trainingSum/k
     testingAvg = testingSum/k
     
+    steps_ridge = [('scalar', StandardScaler()), ('poly', PolynomialFeatures(degree=3)), ('model', Ridge(alpha=1, fit_intercept=True))]
+    pipeline_ridge = Pipeline(steps_ridge)
+    pipeline_ridge.fit(x_train, y_train)
+    print('Training score Ridge regression : {}'.format(pipeline_ridge.score(x_train, y_train)))
+    print('Test score ridge regression: {}'.format(pipeline_ridge.score(x_test, y_test)))
     
     return Model, trainingAvg, testingAvg
 #Function which initialises models and creates y and x
