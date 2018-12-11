@@ -9,6 +9,7 @@ from sklearn.linear_model import Ridge
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from tabulate import tabulate
 
 
 # 1) Read the CSV.
@@ -80,6 +81,8 @@ def main():
     print('Average MSE training error: ' + str(trainingAvgR2))
     print('Average MSE testing error: ' + str(testingAvgR2))
 
+    determine_most_irrelevant_parameter(housing)
+
 def delete_missing(data):
     missing = data.total_bedrooms.isna()
     missingI = []
@@ -102,6 +105,7 @@ def k_fold_train(Model, k, x, y, complexity):
        x_train, x_test = x[train_index], x[test_index]
        y_train, y_test = y[train_index], y[test_index]
        Model.fit(x_train, y_train)
+       
        y_train_pred = Model.predict(x_train)
        y_test_pred = Model.predict(x_test)
         
@@ -132,6 +136,7 @@ def k_fold_train(Model, k, x, y, complexity):
     print('Test score ridge regression: {}'.format(pipeline_ridge.score(x_test, y_test)))
     
     return Model, trainingAvgMSE, testingAvgMSE, trainingAvgR2, testingAvgR2
+
 #Function which initialises models and creates y and x
 #Not used much, just makes Main() neater
 def create_model(housing, predict='median_house_value'):
@@ -199,7 +204,36 @@ def replace_missing(housing, Model, match):
             
         
     return housing
+
+def determine_most_irrelevant_parameter(housing):
+    columns = ["longitude", "latitude", "housing_median_age", "total_rooms", "total_bedrooms", "population", "households", "median_income"]
+    complexities = [1,2,3]
     
+    # These are tables whose rows are the parameter we have dropped, and whose columns are the complexity/order of the regression, and the data in the corresponding cell is the accuracy of the model against either the training or testing data, respectively.
+    training_accuracy = []
+    testing_accuracy  = []
+
+    k = 5   #Number of folds
+    for col_index in range(0, len(columns)):
+        housing_after_drop = housing.drop(columns=[columns[col_index], 'median_house_value'], inplace=False).values
+        Model = lm.LinearRegression()
+
+        train_acc_row = []
+        test_acc_row = []
+
+        for complexity in complexities:
+            Model, _, _, next_train_acc, next_test_acc = k_fold_train(Model, k, housing_after_drop, housing['median_house_value'], complexity)
+            train_acc_row.append(next_train_acc)
+            test_acc_row.append(next_test_acc)
+
+        training_accuracy.append(train_acc_row)
+        testing_accuracy.append(test_acc_row)
+
+    tablefmt='fancy_grid'
+
+    print (tabulate(training_accuracy, tablefmt=tablefmt, headers=complexities, showindex=columns))
+    print ('\n')
+    print (tabulate(testing_accuracy, tablefmt=tablefmt, headers=complexities, showindex=columns))
 
 if __name__ == "__main__": main()
 
