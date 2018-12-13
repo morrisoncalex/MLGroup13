@@ -78,8 +78,8 @@ def main():
 
     print('Average MSE training error: ' + str(trainingAvgMSE))
     print('Average MSE testing error: ' + str(testingAvgMSE))
-    print('Average MSE training error: ' + str(trainingAvgR2))
-    print('Average MSE testing error: ' + str(testingAvgR2))
+    print('Average R2 training error: ' + str(trainingAvgR2))
+    print('Average R2 testing error: ' + str(testingAvgR2))
 
     determine_most_irrelevant_parameter(housing)
 
